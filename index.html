@@ -9,6 +9,172 @@
 	<body>
 		<div id="app" class="h-lvh w-full"></div>
 		<div
+			id="control-panel"
+			class="pointer-events-auto fixed bottom-4 right-4 z-40 w-full max-w-sm rounded-xl border border-white/10 bg-black/70 p-4 text-sm text-white shadow-lg backdrop-blur"
+		>
+			<div class="mb-3 flex items-center justify-between gap-2">
+				<div>
+					<h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+						Scenery Controls
+					</h2>
+					<p class="mt-1 text-xs text-white/60">
+						Adjust camera motion and particle flow, or load another
+						scenery.
+					</p>
+				</div>
+			</div>
+
+			<div class="space-y-4">
+				<section aria-labelledby="camera-controls-heading">
+					<div class="mb-2 flex items-center justify-between">
+						<h3
+							id="camera-controls-heading"
+							class="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-white/60"
+						>
+							Camera movement
+						</h3>
+						<span
+							id="camera-damping-value"
+							class="text-[0.7rem] tabular-nums text-white/70"
+							>2.0</span
+						>
+					</div>
+					<label
+						for="camera-damping"
+						class="mb-1 block text-xs font-medium text-white/80"
+						>Damping</label
+					>
+					<input
+						id="camera-damping"
+						type="range"
+						min="0.5"
+						max="4"
+						step="0.1"
+						value="2"
+						class="w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white"
+					/>
+					<div class="mt-1 flex justify-between text-[0.65rem] text-white/50">
+						<span>Loose</span>
+						<span>Snappy</span>
+					</div>
+				</section>
+
+				<section aria-labelledby="flow-controls-heading">
+					<h3
+						id="flow-controls-heading"
+						class="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-white/60"
+					>
+						Particle flow field
+					</h3>
+
+					<div class="space-y-2">
+						<div>
+							<div class="mb-1 flex items-center justify-between">
+								<label
+									for="flow-influence"
+									class="text-xs font-medium text-white/80"
+									>Influence</label
+								>
+								<span
+									id="flow-influence-value"
+									class="text-[0.7rem] tabular-nums text-white/70"
+									>0.5</span
+								>
+							</div>
+							<input
+								id="flow-influence"
+								type="range"
+								min="0"
+								max="1.5"
+								step="0.05"
+								value="0.5"
+								class="w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white"
+							/>
+						</div>
+
+						<div>
+							<div class="mb-1 flex items-center justify-between">
+								<label
+									for="flow-strength"
+									class="text-xs font-medium text-white/80"
+									>Strength</label
+								>
+								<span
+									id="flow-strength-value"
+									class="text-[0.7rem] tabular-nums text-white/70"
+									>1.2</span
+								>
+							</div>
+							<input
+								id="flow-strength"
+								type="range"
+								min="0"
+								max="3"
+								step="0.1"
+								value="1.2"
+								class="w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white"
+							/>
+						</div>
+
+						<div>
+							<div class="mb-1 flex items-center justify-between">
+								<label
+									for="flow-frequency"
+									class="text-xs font-medium text-white/80"
+									>Frequency</label
+								>
+								<span
+									id="flow-frequency-value"
+									class="text-[0.7rem] tabular-nums text-white/70"
+									>0.5</span
+								>
+							</div>
+							<input
+								id="flow-frequency"
+								type="range"
+								min="0.1"
+								max="2"
+								step="0.05"
+								value="0.5"
+								class="w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white"
+							/>
+						</div>
+					</div>
+				</section>
+
+				<section aria-labelledby="upload-heading">
+					<h3
+						id="upload-heading"
+						class="mb-2 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-white/60"
+					>
+						Upload scenery
+					</h3>
+					<div class="flex items-center gap-2">
+						<button
+							id="ply-upload-button"
+							type="button"
+							class="inline-flex flex-1 items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+						>
+							Choose .min.ply file
+						</button>
+						<input
+							id="ply-upload-input"
+							type="file"
+							accept=".ply"
+							class="hidden"
+						/>
+					</div>
+					<p
+						id="upload-status"
+						class="mt-1 line-clamp-2 text-[0.65rem] text-white/55"
+					>
+						Expected format: preprocessed <code>.min.ply</code> matching the
+						bundled scene.
+					</p>
+				</section>
+			</div>
+		</div>
+		<div
 			id="loader"
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black transition-opacity duration-700"
 		>

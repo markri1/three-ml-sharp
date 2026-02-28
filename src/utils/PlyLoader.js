@@ -5,8 +5,9 @@ import vertexShader from "../shaders/particles.vert";
 import fragmentShader from "../shaders/particles.frag";
 
 export default class PlyLoader {
-	constructor(url, options = {}) {
-		this.url = url;
+	constructor(source, options = {}) {
+		this.url = typeof source === "string" ? source : null;
+		this.sourceBuffer = source instanceof ArrayBuffer ? source : null;
 
 		this.points = null;
 		this.material = null;
@@ -23,25 +24,31 @@ export default class PlyLoader {
 		this.flowFieldFrequency = options.flowFieldFrequency ?? 0.5;
 		this.renderer = options.renderer ?? null;
 
-		this.#load();
+		if (this.sourceBuffer) {
+			this.#buildFromBuffer(this.sourceBuffer);
+		} else if (this.url) {
+			this.#loadFromUrl();
+		}
 	}
 
-	#load() {
+	#loadFromUrl() {
 		fetch(this.url)
 			.then((response) => {
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
 				return this.#readWithProgress(response);
 			})
-			.then((buffer) => {
-				const { positions, colors, vertexCount } = this.#parse(buffer);
-				this.#setupGPGPU(positions, vertexCount);
-				this.#setupParticles(positions, colors, vertexCount);
-				this.onLoad?.(this.points);
-			})
+			.then((buffer) => this.#buildFromBuffer(buffer))
 			.catch((error) => {
 				console.error("PLY load error:", error);
 				this.onError?.(error);
 			});
+	}
+
+	#buildFromBuffer(buffer) {
+		const { positions, colors, vertexCount } = this.#parse(buffer);
+		this.#setupGPGPU(positions, vertexCount);
+		this.#setupParticles(positions, colors, vertexCount);
+		this.onLoad?.(this.points);
 	}
 
 	#parse(buffer) {
@@ -221,6 +228,31 @@ export default class PlyLoader {
 			width * window.devicePixelRatio,
 			height * window.devicePixelRatio,
 		);
+	}
+
+	setFlowField({ influence, strength, frequency }) {
+		if (typeof influence === "number") {
+			this.flowFieldInfluence = influence;
+		}
+		if (typeof strength === "number") {
+			this.flowFieldStrength = strength;
+		}
+		if (typeof frequency === "number") {
+			this.flowFieldFrequency = frequency;
+		}
+
+		if (this.particlesVariable?.material?.uniforms) {
+			const uniforms = this.particlesVariable.material.uniforms;
+			if (uniforms.uFlowFieldInfluence) {
+				uniforms.uFlowFieldInfluence.value = this.flowFieldInfluence;
+			}
+			if (uniforms.uFlowFieldStrength) {
+				uniforms.uFlowFieldStrength.value = this.flowFieldStrength;
+			}
+			if (uniforms.uFlowFieldFrequency) {
+				uniforms.uFlowFieldFrequency.value = this.flowFieldFrequency;
+			}
+		}
 	}
 
 	dispose() {

@@ -68,4 +68,25 @@ export class CameraRig {
 		this.camera.lookAt(this.target);
 		this.camera.rotation.z = Math.sin(this.elapsed * 0.5) * 0.1;
 	}
+
+	setDamping(value) {
+		if (typeof value === "number" && value > 0) {
+			this.damping = value;
+		}
+	}
+
+	setLimits({ xLimit, yLimit }) {
+		if (Array.isArray(xLimit) && xLimit.length === 2) {
+			this.xLimit = xLimit;
+		}
+		if (Array.isArray(yLimit) && yLimit.length === 2) {
+			this.yLimit = yLimit;
+		}
+	}
+
+	setTarget(target) {
+		if (target instanceof THREE.Vector3) {
+			this.target.copy(target);
+		}
+	}
 }
