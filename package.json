@@ -6,7 +6,9 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"ply:validate": "node scripts/ply-tools.mjs validate",
+		"ply:convert-mesh": "node scripts/ply-tools.mjs convert-mesh"
 	},
 	"devDependencies": {
 		"tailwindcss": "^4.1.18",

@@ -211,25 +211,33 @@ function setupUploadControls(scene) {
 		if (!file) return;
 
 		if (status) {
-			status.textContent = `Loading ${file.name}...`;
+			status.textContent = `Preparing ${file.name}...`;
 		}
 
 		try {
+			let result = null;
 			if (typeof scene.loadPlyFromFile === "function") {
-				await scene.loadPlyFromFile(file);
+				result = await scene.loadPlyFromFile(file);
 			}
 			if (status) {
-				status.textContent = `Loaded ${file.name}`;
+				const meta = result?.uploadMeta;
+				if (meta?.converted) {
+					const sampled =
+						typeof meta.pointCount === "number"
+							? `${meta.pointCount.toLocaleString()} points`
+							: "point cloud";
+					status.textContent = `Converted and loaded ${file.name} (${sampled})`;
+				} else {
+					status.textContent = `Loaded and fitted ${file.name}`;
+				}
 			}
 		} catch (error) {
 			console.error(error);
 			if (status) {
-				status.textContent =
-					"Failed to load file. Please use a preprocessed .min.ply.";
+				status.textContent = "Failed to load file. Please upload a valid .ply scene.";
 			}
 		} finally {
 			event.target.value = "";
 		}
 	});
 }
-

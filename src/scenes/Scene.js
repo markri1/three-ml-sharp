@@ -2,6 +2,7 @@ import * as THREE from "three";
 import WebGLContext from "../core/WebGLContext";
 import PlyLoader from "../utils/PlyLoader";
 import { CameraRig } from "../utils/CameraRig";
+import { prepareUploadedPly } from "../utils/PlyUploadPrep";
 
 export default class Scene {
 	constructor() {
@@ -168,13 +169,8 @@ export default class Scene {
 
 	async loadPlyFromFile(file) {
 		if (!file) return;
-
-		const name = file.name || "";
-		if (!name.toLowerCase().endsWith(".ply")) {
-			throw new Error("Only .ply files are supported for scenery upload.");
-		}
-
-		const buffer = await file.arrayBuffer();
+		const prepared = await prepareUploadedPly(file);
+		const buffer = prepared.buffer;
 
 		if (this.plyLoader) {
 			if (this.plyPoints) {
@@ -195,10 +191,41 @@ export default class Scene {
 				flowFieldStrength: this.flowFieldOptions.strength,
 				flowFieldFrequency: this.flowFieldOptions.frequency,
 				onLoad: (points) => {
-					points.rotation.x = Math.PI;
+					const fit = prepared?.fit;
+					if (fit) {
+						if (
+							fit.rotation &&
+							typeof fit.rotation.x === "number" &&
+							typeof fit.rotation.y === "number" &&
+							typeof fit.rotation.z === "number"
+						) {
+							points.rotation.set(
+								fit.rotation.x,
+								fit.rotation.y,
+								fit.rotation.z,
+							);
+						}
+						if (typeof fit.scale === "number" && Number.isFinite(fit.scale)) {
+							points.scale.setScalar(fit.scale);
+						}
+						if (
+							fit.position &&
+							typeof fit.position.x === "number" &&
+							typeof fit.position.y === "number" &&
+							typeof fit.position.z === "number"
+						) {
+							points.position.set(
+								fit.position.x,
+								fit.position.y,
+								fit.position.z,
+							);
+						}
+					} else {
+						points.rotation.x = Math.PI;
+					}
 					this.plyPoints = points;
 					this.scene.add(points);
-					resolve(points);
+					resolve({ points, uploadMeta: prepared });
 				},
 				onError: (error) => {
 					console.error("PLY upload error:", error);
