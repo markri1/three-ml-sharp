@@ -15,6 +15,7 @@ export class CameraRig {
 		this.xLimit = options.xLimit || [-10, 10];
 		this.yLimit = options.yLimit || null;
 		this.damping = options.damping || 2;
+		this.enabled = options.enabled !== false;
 		this.elapsed = 0;
 
 		// normalized pointer (-1..1)
@@ -35,6 +36,8 @@ export class CameraRig {
 	 * @param {number} delta - Time delta in seconds
 	 */
 	update(delta) {
+		if (!this.enabled) return;
+
 		const targetX = this.target.x + this.pointer.x * 2;
 		const limitedX = Math.max(
 			this.xLimit[0],
@@ -67,5 +70,37 @@ export class CameraRig {
 		// Always look at target
 		this.camera.lookAt(this.target);
 		this.camera.rotation.z = Math.sin(this.elapsed * 0.5) * 0.1;
+	}
+
+	setDamping(value) {
+		if (typeof value === "number" && value > 0) {
+			this.damping = value;
+		}
+	}
+
+	setLimits({ xLimit, yLimit }) {
+		if (Array.isArray(xLimit) && xLimit.length === 2) {
+			this.xLimit = xLimit;
+		}
+		if (Array.isArray(yLimit) && yLimit.length === 2) {
+			this.yLimit = yLimit;
+		}
+	}
+
+	setTarget(target) {
+		if (target instanceof THREE.Vector3) {
+			this.target.copy(target);
+		}
+	}
+
+	setEnabled(value) {
+		this.enabled = !!value;
+		if (!this.enabled) {
+			this.camera.position.x = this.target.x;
+			this.camera.position.y = this.target.y;
+			this.camera.position.z = 3;
+			this.camera.lookAt(this.target);
+			this.camera.rotation.z = 0;
+		}
 	}
 }

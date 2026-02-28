@@ -13,6 +13,13 @@ export default class Scene {
 		this.aspectRatio = 0;
 		this.scene = null;
 		this.envMap = null;
+		this.plyLoader = null;
+		this.plyPoints = null;
+		this.flowFieldOptions = {
+			influence: 0.5,
+			strength: 1.2,
+			frequency: 0.5,
+		};
 		this.#init();
 	}
 
@@ -54,9 +61,9 @@ export default class Scene {
 		this.plyLoader = new PlyLoader(`${import.meta.env.BASE_URL}tokyo.min.ply`, {
 			renderer: this.context.renderer,
 			size: 0.05,
-			flowFieldInfluence: 0.5,
-			flowFieldStrength: 1.2,
-			flowFieldFrequency: 0.5,
+			flowFieldInfluence: this.flowFieldOptions.influence,
+			flowFieldStrength: this.flowFieldOptions.strength,
+			flowFieldFrequency: this.flowFieldOptions.frequency,
 			onProgress: (progress) => {
 				const pct = Math.round(progress * 100);
 				const bar = document.getElementById("loader-bar");
@@ -64,6 +71,7 @@ export default class Scene {
 			},
 			onLoad: (points) => {
 				points.rotation.x = Math.PI;
+				this.plyPoints = points;
 				this.scene.add(points);
 				const loader = document.getElementById("loader");
 				if (loader) {
@@ -95,5 +103,108 @@ export default class Scene {
 		this.camera.updateProjectionMatrix();
 
 		this.plyLoader && this.plyLoader.onResize(width, height);
+	}
+
+	setCameraRigOptions(options = {}) {
+		if (!this.cameraRig) return;
+
+		if (typeof options.enabled === "boolean") {
+			this.cameraRig.setEnabled(options.enabled);
+		}
+
+		if (typeof options.damping === "number") {
+			this.cameraRig.setDamping(options.damping);
+		}
+
+		if (Array.isArray(options.xLimit) || Array.isArray(options.yLimit)) {
+			this.cameraRig.setLimits({
+				xLimit: options.xLimit ?? this.cameraRig.xLimit,
+				yLimit: options.yLimit ?? this.cameraRig.yLimit,
+			});
+		}
+
+		if (options.target instanceof THREE.Vector3) {
+			this.cameraRig.setTarget(options.target);
+		}
+	}
+
+	setFlowFieldOptions(options = {}) {
+		this.flowFieldOptions = {
+			influence:
+				typeof options.influence === "number"
+					? options.influence
+					: this.flowFieldOptions.influence,
+			strength:
+				typeof options.strength === "number"
+					? options.strength
+					: this.flowFieldOptions.strength,
+			frequency:
+				typeof options.frequency === "number"
+					? options.frequency
+					: this.flowFieldOptions.frequency,
+		};
+
+		if (this.plyLoader && typeof this.plyLoader.setFlowField === "function") {
+			this.plyLoader.setFlowField({
+				influence: this.flowFieldOptions.influence,
+				strength: this.flowFieldOptions.strength,
+				frequency: this.flowFieldOptions.frequency,
+			});
+		}
+	}
+
+	getCameraRigOptions() {
+		return {
+			enabled: this.cameraRig?.enabled ?? true,
+			damping: this.cameraRig?.damping ?? 2.0,
+			xLimit: this.cameraRig?.xLimit ?? [-10.25, 10.25],
+			yLimit: this.cameraRig?.yLimit ?? [-1.25, 0.25],
+		};
+	}
+
+	getFlowFieldOptions() {
+		return { ...this.flowFieldOptions };
+	}
+
+	async loadPlyFromFile(file) {
+		if (!file) return;
+
+		const name = file.name || "";
+		if (!name.toLowerCase().endsWith(".ply")) {
+			throw new Error("Only .ply files are supported for scenery upload.");
+		}
+
+		const buffer = await file.arrayBuffer();
+
+		if (this.plyLoader) {
+			if (this.plyPoints) {
+				this.scene.remove(this.plyPoints);
+				this.plyPoints = null;
+			} else if (this.plyLoader.points) {
+				this.scene.remove(this.plyLoader.points);
+			}
+			this.plyLoader.dispose();
+			this.plyLoader = null;
+		}
+
+		return new Promise((resolve, reject) => {
+			this.plyLoader = new PlyLoader(buffer, {
+				renderer: this.context.renderer,
+				size: 0.05,
+				flowFieldInfluence: this.flowFieldOptions.influence,
+				flowFieldStrength: this.flowFieldOptions.strength,
+				flowFieldFrequency: this.flowFieldOptions.frequency,
+				onLoad: (points) => {
+					points.rotation.x = Math.PI;
+					this.plyPoints = points;
+					this.scene.add(points);
+					resolve(points);
+				},
+				onError: (error) => {
+					console.error("PLY upload error:", error);
+					reject(error);
+				},
+			});
+		});
 	}
 }

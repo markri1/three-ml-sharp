@@ -8,6 +8,8 @@ class Three {
 		this.container = container;
 		this.context = null;
 		this.clock = new THREE.Clock();
+		this.scene = null;
+		this.postProcessing = null;
 	}
 
 	run() {
@@ -45,6 +47,10 @@ class Three {
 		this.context.onResize(width, height);
 		this.scene.onResize(width, height);
 		this.postProcessing.onResize(width, height);
+	}
+
+	getScene() {
+		return this.scene;
 	}
 }
 
