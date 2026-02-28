@@ -10,52 +10,89 @@
 		<div id="app" class="h-lvh w-full"></div>
 		<div
 			id="control-panel"
-			class="pointer-events-auto fixed bottom-4 right-4 z-40 w-full max-w-sm rounded-xl border border-white/10 bg-black/70 p-4 text-sm text-white shadow-lg backdrop-blur"
+			class="pointer-events-auto fixed bottom-4 right-4 z-40 w-full max-w-sm rounded-xl border border-white/10 bg-black/70 text-sm text-white shadow-lg backdrop-blur"
 		>
-			<div class="mb-3 flex items-center justify-between gap-2">
-				<div>
-					<h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-white">
-						Scenery Controls
-					</h2>
-					<p class="mt-1 text-xs text-white/60">
-						Adjust camera motion and particle flow, or load another
-						scenery.
-					</p>
-				</div>
-			</div>
+			<button
+				id="control-panel-toggle"
+				type="button"
+				aria-expanded="true"
+				aria-controls="control-panel-content"
+				class="flex w-full items-center justify-between gap-2 p-4 text-left transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-t-xl"
+			>
+				<h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-white">
+					Scenery Controls
+				</h2>
+				<svg
+					id="control-panel-chevron"
+					class="control-panel-chevron h-4 w-4 shrink-0 transition-transform duration-200 text-white/70"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<polyline points="6 9 12 15 18 9"></polyline>
+				</svg>
+			</button>
 
-			<div class="space-y-4">
+			<div
+				id="control-panel-content"
+				class="control-panel-content space-y-4 border-t border-white/10 px-4 pb-4 pt-3"
+			>
+				<p class="mb-3 text-xs text-white/60">
+					Adjust camera motion and particle flow, or load another
+					scenery.
+				</p>
+
 				<section aria-labelledby="camera-controls-heading">
-					<div class="mb-2 flex items-center justify-between">
+					<div class="mb-2 flex items-center justify-between gap-2">
 						<h3
 							id="camera-controls-heading"
 							class="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-white/60"
 						>
 							Camera movement
 						</h3>
-						<span
-							id="camera-damping-value"
-							class="text-[0.7rem] tabular-nums text-white/70"
-							>2.0</span
+						<button
+							id="camera-movement-toggle"
+							type="button"
+							role="switch"
+							aria-checked="true"
+							class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-white/15 bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 data-[checked]:bg-white/25"
+							data-checked="true"
 						>
+							<span
+								class="pointer-events-none inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow transition-transform duration-200"
+								data-checked="true"
+							></span>
+						</button>
 					</div>
-					<label
-						for="camera-damping"
-						class="mb-1 block text-xs font-medium text-white/80"
-						>Damping</label
-					>
-					<input
-						id="camera-damping"
-						type="range"
-						min="0.5"
-						max="4"
-						step="0.1"
-						value="2"
-						class="w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white"
-					/>
-					<div class="mt-1 flex justify-between text-[0.65rem] text-white/50">
-						<span>Loose</span>
-						<span>Snappy</span>
+					<div id="camera-damping-controls">
+						<div class="mb-2 flex items-center justify-between">
+							<label
+								for="camera-damping"
+								class="block text-xs font-medium text-white/80"
+								>Damping</label
+							>
+							<span
+								id="camera-damping-value"
+								class="text-[0.7rem] tabular-nums text-white/70"
+								>2.0</span
+							>
+						</div>
+						<input
+							id="camera-damping"
+							type="range"
+							min="0.5"
+							max="4"
+							step="0.1"
+							value="2"
+							class="w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white"
+						/>
+						<div class="mt-1 flex justify-between text-[0.65rem] text-white/50">
+							<span>Loose</span>
+							<span>Snappy</span>
+						</div>
 					</div>
 				</section>
 

@@ -13,14 +13,43 @@ export function initControls(three) {
 			? scene.getFlowFieldOptions()
 			: {};
 
+	setupPanelCollapse();
 	setupCameraControls(scene, cameraOptions);
 	setupFlowFieldControls(scene, flowOptions);
 	setupUploadControls(scene);
 }
 
+function setupPanelCollapse() {
+	const toggle = document.getElementById("control-panel-toggle");
+	const content = document.getElementById("control-panel-content");
+	const chevron = document.getElementById("control-panel-chevron");
+
+	if (!toggle || !content || !chevron) return;
+
+	let collapsed = false;
+
+	function updateCollapsed(value) {
+		collapsed = !!value;
+		toggle.setAttribute("aria-expanded", String(!collapsed));
+		if (collapsed) {
+			content.classList.add("collapsed");
+			chevron.classList.add("collapsed");
+		} else {
+			content.classList.remove("collapsed");
+			chevron.classList.remove("collapsed");
+		}
+	}
+
+	toggle.addEventListener("click", () => {
+		updateCollapsed(!collapsed);
+	});
+}
+
 function setupCameraControls(scene, cameraOptions) {
 	const dampingInput = document.getElementById("camera-damping");
 	const dampingValue = document.getElementById("camera-damping-value");
+	const movementToggle = document.getElementById("camera-movement-toggle");
+	const dampingContainer = document.getElementById("camera-damping-controls");
 
 	if (!dampingInput) return;
 
@@ -28,10 +57,36 @@ function setupCameraControls(scene, cameraOptions) {
 		typeof cameraOptions.damping === "number"
 			? cameraOptions.damping
 			: Number(dampingInput.value) || 2;
+	const initialEnabled = cameraOptions.enabled !== false;
 
 	dampingInput.value = String(initialDamping);
 	if (dampingValue) {
 		dampingValue.textContent = initialDamping.toFixed(1);
+	}
+
+	function setDampingVisible(visible) {
+		if (dampingContainer) {
+			dampingContainer.classList.toggle("hidden", !visible);
+		}
+	}
+
+	if (movementToggle) {
+		const knob = movementToggle.querySelector("span");
+		movementToggle.setAttribute("aria-checked", String(initialEnabled));
+		movementToggle.setAttribute("data-checked", initialEnabled ? "true" : "false");
+		if (knob) knob.setAttribute("data-checked", initialEnabled ? "true" : "false");
+		setDampingVisible(initialEnabled);
+
+		movementToggle.addEventListener("click", () => {
+			const next = movementToggle.getAttribute("data-checked") !== "true";
+			movementToggle.setAttribute("aria-checked", String(next));
+			movementToggle.setAttribute("data-checked", next ? "true" : "false");
+			if (knob) knob.setAttribute("data-checked", next ? "true" : "false");
+			setDampingVisible(next);
+			if (typeof scene.setCameraRigOptions === "function") {
+				scene.setCameraRigOptions({ enabled: next });
+			}
+		});
 	}
 
 	dampingInput.addEventListener("input", (event) => {

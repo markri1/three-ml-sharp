@@ -108,6 +108,10 @@ export default class Scene {
 	setCameraRigOptions(options = {}) {
 		if (!this.cameraRig) return;
 
+		if (typeof options.enabled === "boolean") {
+			this.cameraRig.setEnabled(options.enabled);
+		}
+
 		if (typeof options.damping === "number") {
 			this.cameraRig.setDamping(options.damping);
 		}
@@ -151,6 +155,7 @@ export default class Scene {
 
 	getCameraRigOptions() {
 		return {
+			enabled: this.cameraRig?.enabled ?? true,
 			damping: this.cameraRig?.damping ?? 2.0,
 			xLimit: this.cameraRig?.xLimit ?? [-10.25, 10.25],
 			yLimit: this.cameraRig?.yLimit ?? [-1.25, 0.25],

@@ -6,3 +6,21 @@
 
 @theme {
 }
+
+/* Scenery controls panel: collapse */
+.control-panel-content.collapsed {
+	display: none;
+}
+
+#control-panel-chevron.collapsed {
+	transform: rotate(-90deg);
+}
+
+/* Camera movement toggle switch when on (checked) */
+#camera-movement-toggle[data-checked="true"] {
+	@apply bg-blue-500;
+}
+
+#camera-movement-toggle[data-checked="true"] span {
+	transform: translateX(1rem);
+}
