@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import WebGLContext from "../core/WebGLContext";
 import PlyLoader from "../utils/PlyLoader";
 import { CameraRig } from "../utils/CameraRig";
@@ -9,6 +10,7 @@ export default class Scene {
 		this.context = null;
 		this.camera = null;
 		this.cameraRig = null;
+		this.orbitControls = null;
 		this.width = 0;
 		this.height = 0;
 		this.aspectRatio = 0;
@@ -29,6 +31,7 @@ export default class Scene {
 		this.#setupScene();
 		this.#setupCamera();
 		this.#setupCameraRig();
+		this.#setupManualCameraControls();
 		await this.#addObjects();
 	}
 
@@ -56,6 +59,39 @@ export default class Scene {
 			target: new THREE.Vector3(0, 0, -5),
 			damping: 2.0,
 		});
+	}
+
+	#setupManualCameraControls() {
+		const domElement = this.context?.renderer?.domElement;
+		if (!domElement) return;
+
+		this.orbitControls = new OrbitControls(this.camera, domElement);
+		this.orbitControls.enableDamping = true;
+		this.orbitControls.dampingFactor = 0.08;
+		this.orbitControls.enableRotate = true;
+		this.orbitControls.enablePan = true;
+		this.orbitControls.enableZoom = true;
+		this.orbitControls.minDistance = 0.5;
+		this.orbitControls.maxDistance = 200;
+		this.orbitControls.target.copy(
+			this.cameraRig?.target ?? new THREE.Vector3(0, 0, -5),
+		);
+		this.orbitControls.enabled = false;
+		this.orbitControls.update();
+	}
+
+	#setManualCameraEnabled(enabled) {
+		if (this.orbitControls) {
+			this.orbitControls.enabled = enabled;
+			if (enabled) {
+				this.orbitControls.update();
+			}
+		}
+
+		const canvas = this.context?.canvas;
+		if (canvas) {
+			canvas.style.pointerEvents = enabled ? "auto" : "none";
+		}
 	}
 
 	async #addObjects() {
@@ -91,7 +127,11 @@ export default class Scene {
 	}
 
 	animate(delta, elapsed) {
-		this.cameraRig && this.cameraRig.update(delta);
+		if (this.cameraRig?.enabled) {
+			this.cameraRig.update(delta);
+		} else if (this.orbitControls?.enabled) {
+			this.orbitControls.update();
+		}
 		this.plyLoader && this.plyLoader.update(delta, elapsed);
 	}
 
@@ -103,6 +143,9 @@ export default class Scene {
 		this.camera.aspect = this.aspectRatio;
 		this.camera.updateProjectionMatrix();
 
+		if (this.orbitControls) {
+			this.orbitControls.update();
+		}
 		this.plyLoader && this.plyLoader.onResize(width, height);
 	}
 
@@ -111,6 +154,11 @@ export default class Scene {
 
 		if (typeof options.enabled === "boolean") {
 			this.cameraRig.setEnabled(options.enabled);
+			this.#setManualCameraEnabled(!options.enabled);
+			if (!options.enabled && this.orbitControls && this.cameraRig?.target) {
+				this.orbitControls.target.copy(this.cameraRig.target);
+				this.orbitControls.update();
+			}
 		}
 
 		if (typeof options.damping === "number") {
@@ -126,6 +174,10 @@ export default class Scene {
 
 		if (options.target instanceof THREE.Vector3) {
 			this.cameraRig.setTarget(options.target);
+			if (this.orbitControls) {
+				this.orbitControls.target.copy(options.target);
+				if (this.orbitControls.enabled) this.orbitControls.update();
+			}
 		}
 	}
 

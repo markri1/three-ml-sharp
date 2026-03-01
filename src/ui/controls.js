@@ -226,7 +226,15 @@ function setupUploadControls(scene) {
 						typeof meta.pointCount === "number"
 							? `${meta.pointCount.toLocaleString()} points`
 							: "point cloud";
-					status.textContent = `Converted and loaded ${file.name} (${sampled})`;
+					if (meta?.sourceType === "image") {
+						if (meta?.method === "mp-sharp") {
+							status.textContent = `MP SHARP converted and loaded ${file.name} (${sampled})`;
+						} else {
+							status.textContent = `Image converted and loaded ${file.name} (${sampled})`;
+						}
+					} else {
+						status.textContent = `Converted and loaded ${file.name} (${sampled})`;
+					}
 				} else {
 					status.textContent = `Loaded and fitted ${file.name}`;
 				}
@@ -234,7 +242,7 @@ function setupUploadControls(scene) {
 		} catch (error) {
 			console.error(error);
 			if (status) {
-				status.textContent = "Failed to load file. Please upload a valid .ply scene.";
+				status.textContent = "Failed to load file. Please upload a valid .ply or image file.";
 			}
 		} finally {
 			event.target.value = "";

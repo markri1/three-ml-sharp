@@ -192,12 +192,12 @@
 							type="button"
 							class="inline-flex flex-1 items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
 						>
-							Choose .ply file
+							Choose .ply or image
 						</button>
 						<input
 							id="ply-upload-input"
 							type="file"
-							accept=".ply"
+							accept=".ply,image/*"
 							class="hidden"
 						/>
 					</div>
@@ -205,8 +205,9 @@
 						id="upload-status"
 						class="mt-1 line-clamp-2 text-[0.65rem] text-white/55"
 					>
-						Upload a <code>.ply</code> point cloud or mesh. Meshes are
-						auto-converted to particle format.
+						Upload a <code>.ply</code> point cloud/mesh or a 2D image
+						(<code>.png</code>, <code>.jpg</code>, <code>.webp</code>, etc.).
+						Images use MP SHARP when configured, otherwise local conversion.
 					</p>
 				</section>
 			</div>

@@ -4,8 +4,15 @@ import { PLYLoader as ThreePlyLoader } from "three/examples/jsm/loaders/PLYLoade
 const SH_C0 = 0.28209479177387814;
 const MIN_TARGET_POINTS = 250000;
 const MAX_TARGET_POINTS = 1200000;
+const IMAGE_MAX_POINTS = 350000;
+const IMAGE_TARGET_HEIGHT = 6.0;
+const IMAGE_DEPTH = 2.5;
 const FIT_TARGET_MAX_DIM = 8.0;
 const FIT_TARGET_CENTER = { x: 0, y: 0, z: -8 };
+const MP_SHARP_ENDPOINT = (import.meta.env.VITE_MP_SHARP_ENDPOINT || "").trim();
+const MP_SHARP_STRICT = String(import.meta.env.VITE_MP_SHARP_STRICT || "false")
+	.toLowerCase()
+	.trim() === "true";
 
 function clamp01(v) {
 	return Math.max(0, Math.min(1, v));
@@ -326,6 +333,189 @@ function encodeMinPly(points) {
 	return out.buffer;
 }
 
+function computeBoundsFromPoints(points) {
+	if (!points?.length) return null;
+
+	let minX = Infinity;
+	let minY = Infinity;
+	let minZ = Infinity;
+	let maxX = -Infinity;
+	let maxY = -Infinity;
+	let maxZ = -Infinity;
+
+	for (let i = 0; i < points.length; i++) {
+		const p = points[i];
+		if (p.x < minX) minX = p.x;
+		if (p.y < minY) minY = p.y;
+		if (p.z < minZ) minZ = p.z;
+		if (p.x > maxX) maxX = p.x;
+		if (p.y > maxY) maxY = p.y;
+		if (p.z > maxZ) maxZ = p.z;
+	}
+
+	return {
+		min: { x: minX, y: minY, z: minZ },
+		max: { x: maxX, y: maxY, z: maxZ },
+	};
+}
+
+function isImageFile(file) {
+	const type = (file.type || "").toLowerCase();
+	const name = (file.name || "").toLowerCase();
+	if (type.startsWith("image/")) return true;
+	return /\.(png|jpe?g|webp|bmp|gif)$/i.test(name);
+}
+
+function isPlyFile(file) {
+	const name = (file.name || "").toLowerCase();
+	return name.endsWith(".ply");
+}
+
+function decodeBase64ToArrayBuffer(base64) {
+	const b64 = base64.includes(",") ? base64.split(",").pop() : base64;
+	const binary = atob(b64);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+	return bytes.buffer;
+}
+
+async function loadImageBitmap(file) {
+	if (typeof createImageBitmap === "function") {
+		return createImageBitmap(file);
+	}
+
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		const url = URL.createObjectURL(file);
+		img.onload = () => {
+			URL.revokeObjectURL(url);
+			resolve(img);
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error("Failed to decode image file."));
+		};
+		img.src = url;
+	});
+}
+
+async function convertImageToPointCloud(file) {
+	const bitmap = await loadImageBitmap(file);
+	const srcW = bitmap.width;
+	const srcH = bitmap.height;
+	if (!srcW || !srcH) {
+		throw new Error("Image has invalid dimensions.");
+	}
+
+	const scale = Math.min(1, Math.sqrt(IMAGE_MAX_POINTS / (srcW * srcH)));
+	const w = Math.max(1, Math.round(srcW * scale));
+	const h = Math.max(1, Math.round(srcH * scale));
+
+	const canvas = document.createElement("canvas");
+	canvas.width = w;
+	canvas.height = h;
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
+	if (!ctx) {
+		throw new Error("Could not create 2D canvas context.");
+	}
+	ctx.drawImage(bitmap, 0, 0, w, h);
+	const img = ctx.getImageData(0, 0, w, h).data;
+	if (typeof bitmap.close === "function") {
+		bitmap.close();
+	}
+
+	const totalPixels = w * h;
+	const stride = Math.max(1, Math.ceil(Math.sqrt(totalPixels / IMAGE_MAX_POINTS)));
+	const aspect = w / h;
+	const worldH = IMAGE_TARGET_HEIGHT;
+	const worldW = worldH * aspect;
+	const halfW = worldW * 0.5;
+	const halfH = worldH * 0.5;
+
+	const points = [];
+
+	for (let y = 0; y < h; y += stride) {
+		for (let x = 0; x < w; x += stride) {
+			const i = (y * w + x) * 4;
+			const a = img[i + 3] / 255;
+			if (a < 0.02) continue;
+
+			const r = clamp01(img[i + 0] / 255);
+			const g = clamp01(img[i + 1] / 255);
+			const b = clamp01(img[i + 2] / 255);
+			const luma = clamp01(0.2126 * r + 0.7152 * g + 0.0722 * b);
+
+			const u = w > 1 ? x / (w - 1) : 0.5;
+			const v = h > 1 ? y / (h - 1) : 0.5;
+
+			const px = -halfW + u * worldW;
+			const py = halfH - v * worldH;
+			const pz = (luma - 0.5) * IMAGE_DEPTH;
+
+			points.push({
+				x: px,
+				y: py,
+				z: pz,
+				dc0: toDc(r),
+				dc1: toDc(g),
+				dc2: toDc(b),
+			});
+		}
+	}
+
+	if (!points.length) {
+		throw new Error("Image produced no visible pixels to convert.");
+	}
+
+	return {
+		buffer: encodeMinPly(points),
+		converted: true,
+		pointCount: points.length,
+		method: "image-depth",
+		sourceType: "image",
+		fit: computeAutoFit(computeBoundsFromPoints(points)),
+	};
+}
+
+async function fetchMpSharpPlyBuffer(file) {
+	if (!MP_SHARP_ENDPOINT) return null;
+
+	const form = new FormData();
+	form.append("image", file, file.name || "upload-image");
+	form.append("output", "ply");
+
+	const response = await fetch(MP_SHARP_ENDPOINT, {
+		method: "POST",
+		body: form,
+	});
+
+	if (!response.ok) {
+		throw new Error(`MP SHARP request failed with status ${response.status}`);
+	}
+
+	const contentType = (response.headers.get("content-type") || "").toLowerCase();
+	if (contentType.includes("application/json")) {
+		const payload = await response.json();
+		if (typeof payload?.plyBase64 === "string" && payload.plyBase64.length > 0) {
+			return decodeBase64ToArrayBuffer(payload.plyBase64);
+		}
+		if (typeof payload?.plyUrl === "string" && payload.plyUrl.length > 0) {
+			const plyResponse = await fetch(payload.plyUrl);
+			if (!plyResponse.ok) {
+				throw new Error(
+					`MP SHARP returned plyUrl but download failed with status ${plyResponse.status}`,
+				);
+			}
+			return plyResponse.arrayBuffer();
+		}
+		throw new Error("MP SHARP JSON response missing plyBase64 or plyUrl.");
+	}
+
+	return response.arrayBuffer();
+}
+
 function sampleMeshToPointCloud(geometry, targetPoints) {
 	const positionAttr = geometry.getAttribute("position");
 	if (!positionAttr) {
@@ -423,14 +613,11 @@ function sampleMeshToPointCloud(geometry, targetPoints) {
 	return { points, method: "surface" };
 }
 
-export async function prepareUploadedPly(file) {
-	if (!file) throw new Error("No file provided");
-	const name = file.name || "";
-	if (!name.toLowerCase().endsWith(".ply")) {
-		throw new Error("Only .ply files are supported.");
-	}
+function convertPlyBufferToParticles(buffer, options = {}) {
+	const sourceType = options.sourceType || "ply";
+	const forceConverted = options.forceConverted === true;
+	const methodOverride = options.methodOverride || null;
 
-	const buffer = await file.arrayBuffer();
 	const header = inspectPlyHeader(buffer);
 	if (!header.validPly) {
 		throw new Error("File is not a valid PLY.");
@@ -440,9 +627,10 @@ export async function prepareUploadedPly(file) {
 		const bounds = computeBoundsFromBinaryPly(buffer, header);
 		return {
 			buffer,
-			converted: false,
+			converted: forceConverted,
 			pointCount: header.vertexCount,
-			method: "native",
+			method: methodOverride || "native",
+			sourceType,
 			fit: computeAutoFit(bounds),
 		};
 	}
@@ -468,7 +656,40 @@ export async function prepareUploadedPly(file) {
 		buffer: encodeMinPly(points),
 		converted: true,
 		pointCount: points.length,
-		method,
+		method: methodOverride || method,
+		sourceType,
 		fit: computeAutoFit(bounds),
 	};
+}
+
+export async function prepareUploadedPly(file) {
+	if (!file) throw new Error("No file provided");
+
+	if (isImageFile(file)) {
+		if (MP_SHARP_ENDPOINT) {
+			try {
+				const mpSharpPly = await fetchMpSharpPlyBuffer(file);
+				if (mpSharpPly) {
+					return convertPlyBufferToParticles(mpSharpPly, {
+						sourceType: "image",
+						forceConverted: true,
+						methodOverride: "mp-sharp",
+					});
+				}
+			} catch (error) {
+				if (MP_SHARP_STRICT) {
+					throw error;
+				}
+				console.warn("MP SHARP conversion failed, falling back to local conversion.", error);
+			}
+		}
+		return convertImageToPointCloud(file);
+	}
+
+	if (!isPlyFile(file)) {
+		throw new Error("Only .ply or image files are supported.");
+	}
+
+	const buffer = await file.arrayBuffer();
+	return convertPlyBufferToParticles(buffer, { sourceType: "ply" });
 }
